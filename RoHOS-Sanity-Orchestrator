@@ -56,7 +56,7 @@ def buildReactiveChoiceScript(String expression) {
             def currentSite = null
             def currentSection = null
             for (String rawLine in text.readLines()) {
-                def line = rawLine.replaceAll(/#.*$/, '')
+                def line = rawLine.replaceAll(/#.*\$/, '')
                 if (!line.trim()) continue
                 def indent = line.takeWhile { it == ' ' }.size()
                 def content = line.trim()
