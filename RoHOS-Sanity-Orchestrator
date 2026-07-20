@@ -1,6 +1,6 @@
-import org.yaml.snakeyaml.Yaml
+import groovy.yaml.YamlSlurper
 
-def config = new Yaml().load(readFile('SiteConfiguration.yml'))
+def config = new YamlSlurper().parseText(readFile('SiteConfiguration.yml'))
 def sites = config.SITES.keySet().sort().join('\n')
 def defaultSite = config.SITES.keySet().iterator().next()
 
@@ -15,8 +15,7 @@ properties([
             groovyScript: [
                 sandbox: true,
                 script: """
-                    import org.yaml.snakeyaml.Yaml
-                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def cfg = new groovy.yaml.YamlSlurper().parseText(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
                     def site = SITE ?: '${defaultSite}'
                     return cfg.SITES[site].LABS ?: []
                 """
@@ -30,8 +29,7 @@ properties([
             groovyScript: [
                 sandbox: true,
                 script: """
-                    import org.yaml.snakeyaml.Yaml
-                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def cfg = new groovy.yaml.YamlSlurper().parseText(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
                     def site = SITE ?: '${defaultSite}'
                     return cfg.SITES[site].AGENTS ?: []
                 """
@@ -45,8 +43,7 @@ properties([
             groovyScript: [
                 sandbox: true,
                 script: """
-                    import org.yaml.snakeyaml.Yaml
-                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def cfg = new groovy.yaml.YamlSlurper().parseText(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
                     def site = SITE ?: '${defaultSite}'
                     return [ cfg.SITES[site].HTTP_SERVER ?: '' ]
                 """
