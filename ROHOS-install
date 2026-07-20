@@ -1,0 +1,97 @@
+import org.yaml.snakeyaml.Yaml
+
+def config = new Yaml().load(readFile('SiteConfiguration.yml'))
+def sites = config.SITES.keySet().sort().join('\n')
+def defaultSite = config.SITES.keySet().iterator().next()
+
+properties([
+    parameters([
+        choice(name: 'SITE', choices: sites, description: 'Site'),
+        activeChoiceReactiveReferenceParam(
+            name: 'LAB_NAME',
+            description: 'Lab name',
+            choiceType: 'SINGLE_SELECT',
+            referencedParameters: 'SITE',
+            groovyScript: [
+                sandbox: true,
+                script: """
+                    import org.yaml.snakeyaml.Yaml
+                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def site = SITE ?: '${defaultSite}'
+                    return cfg.SITES[site].LABS ?: []
+                """
+            ]
+        ),
+        activeChoiceReactiveReferenceParam(
+            name: 'AGENT',
+            description: 'Agent label',
+            choiceType: 'SINGLE_SELECT',
+            referencedParameters: 'SITE',
+            groovyScript: [
+                sandbox: true,
+                script: """
+                    import org.yaml.snakeyaml.Yaml
+                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def site = SITE ?: '${defaultSite}'
+                    return cfg.SITES[site].AGENTS ?: []
+                """
+            ]
+        ),
+        activeChoiceReactiveReferenceParam(
+            name: 'HTTP_SERVER',
+            description: 'HTTP server',
+            choiceType: 'SINGLE_SELECT',
+            referencedParameters: 'SITE',
+            groovyScript: [
+                sandbox: true,
+                script: """
+                    import org.yaml.snakeyaml.Yaml
+                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def site = SITE ?: '${defaultSite}'
+                    return [ cfg.SITES[site].HTTP_SERVER ?: '' ]
+                """
+            ]
+        ),
+        string(name: 'instage', defaultValue: '', description: 'instage value')
+    ])
+])
+
+pipeline {
+    agent any
+    stages {
+        stage('Echo Parameters') {
+            steps {
+                sh '''
+                    echo "SITE=${SITE}"
+                    echo "AGENT=${AGENT}"
+                    echo "LAB_NAME=${LAB_NAME}"
+                    echo "HTTP_SERVER=${HTTP_SERVER}"
+                    echo "instage=${instage}"
+                '''
+            }
+        }
+        stage('Read Lab Data') {
+            steps {
+                script {
+                    def lab = params.LAB_NAME ?: ''
+                    if (!lab) {
+                        echo 'LAB_NAME is empty'
+                    } else {
+                        def path = "${lab}LabData.yml"
+                        if (!fileExists(path)) {
+                            error("File not found: ${path}")
+                        }
+                        def data = readYaml file: path
+                        if (data instanceof Map) {
+                            data.each { k, v -> echo "${k}: ${v}" }
+                        } else if (data instanceof List) {
+                            data.each { echo it.toString() }
+                        } else {
+                            echo data.toString()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

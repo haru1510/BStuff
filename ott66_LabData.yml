@@ -1,0 +1,16 @@
+# ROHOS Lab Configuration - Generic template for OTW, PLANO sites
+# Version: 1.0
+
+## ========================================
+## Jenkins Parameters (User-Supplied Build Parameters)
+## ========================================
+JENKINS_PARAMETERS:
+  SITE: 'OTW'  # OTW, PLANO
+
+## ========================================
+## Environment Variables
+## ========================================
+ENVIRONMENT_VARIABLES:
+  LC_ALL: 'en_US.UTF-8'
+  LANG: 'en_US.UTF-8'
+  LANGUAGE: 'en_US.UTF-8'

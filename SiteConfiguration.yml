@@ -1,0 +1,32 @@
+# ========================================
+# Site Configuration - Centralized Lab & Agent Mapping
+# ========================================
+# Purpose: Define available labs and agents for each site
+# Usage: Loaded by Groovy pipeline to auto-populate LAB_NAME and BUILD_NODE_LABEL
+# Convention: Default is the first element in each list
+# Future: Support multiple labs/agents per site with dynamic selection
+
+SITES:
+  PLANO:
+    LABS:
+      - 'svr3475'
+    AGENTS:
+      - 'PLA-PC2_C8'
+    HTTP_SERVER: 'xxx.xx.xxx.xx'
+    LOGIN:
+      1:
+        SERVER_PORT: '22'
+        PASSWORD_CREDENTIAL_ID: 'abc'
+
+  OTTAWA:
+    LABS:
+      - 'ott66'
+      - 'ott62'
+    AGENTS:
+      - 'OTT-PC1-2_C8'
+      - 'OTT-PC3_C8'
+    HTTP_SERVER: 'yy.yyy.yyy.yy'
+    LOGIN:
+      1:
+        SERVER_PORT: '22'
+        PASSWORD_CREDENTIAL_ID: 'abc'

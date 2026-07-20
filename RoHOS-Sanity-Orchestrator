@@ -1,0 +1,97 @@
+import org.yaml.snakeyaml.Yaml
+
+def config = new Yaml().load(readFile('SiteConfiguration.yml'))
+def sites = config.SITES.keySet().sort().join('\n')
+def defaultSite = config.SITES.keySet().iterator().next()
+
+properties([
+    parameters([
+        choice(name: 'SITE', choices: sites, description: 'Site'),
+        activeChoiceReactiveReferenceParam(
+            name: 'LAB_NAME',
+            description: 'Lab name',
+            choiceType: 'SINGLE_SELECT',
+            referencedParameters: 'SITE',
+            groovyScript: [
+                sandbox: true,
+                script: """
+                    import org.yaml.snakeyaml.Yaml
+                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def site = SITE ?: '${defaultSite}'
+                    return cfg.SITES[site].LABS ?: []
+                """
+            ]
+        ),
+        activeChoiceReactiveReferenceParam(
+            name: 'AGENT',
+            description: 'Agent label',
+            choiceType: 'SINGLE_SELECT',
+            referencedParameters: 'SITE',
+            groovyScript: [
+                sandbox: true,
+                script: """
+                    import org.yaml.snakeyaml.Yaml
+                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def site = SITE ?: '${defaultSite}'
+                    return cfg.SITES[site].AGENTS ?: []
+                """
+            ]
+        ),
+        activeChoiceReactiveReferenceParam(
+            name: 'HTTP_SERVER',
+            description: 'HTTP server',
+            choiceType: 'SINGLE_SELECT',
+            referencedParameters: 'SITE',
+            groovyScript: [
+                sandbox: true,
+                script: """
+                    import org.yaml.snakeyaml.Yaml
+                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+                    def site = SITE ?: '${defaultSite}'
+                    return [ cfg.SITES[site].HTTP_SERVER ?: '' ]
+                """
+            ]
+        ),
+    ])
+])
+
+pipeline {
+    agent any
+    stages {
+        stage('Echo Parameters') {
+            steps {
+                sh '''
+                    echo "SITE=${SITE}"
+                    echo "AGENT=${AGENT}"
+                    echo "LAB_NAME=${LAB_NAME}"
+                    echo "HTTP_SERVER=${HTTP_SERVER}"
+                    echo "instage=${instage}"
+                '''
+            }
+        }
+        stage('Run ROHOS-install') {
+            steps {
+                script {
+                    build job: 'ROHOS-install', parameters: [
+                        string(name: 'SITE', value: params.SITE),
+                        string(name: 'LAB_NAME', value: params.LAB_NAME),
+                        string(name: 'AGENT', value: params.AGENT),
+                        string(name: 'HTTP_SERVER', value: params.HTTP_SERVER),
+                    ], wait: true
+                }
+            }
+        }
+        stage('Run FW-upgrade') {
+            steps {
+                script {
+                    build job: 'FW-upgrade', parameters: [
+                        string(name: 'SITE', value: params.SITE),
+                        string(name: 'LAB_NAME', value: params.LAB_NAME),
+                        string(name: 'AGENT', value: params.AGENT),
+                    ], wait: true
+                }
+            }
+        }
+    }
+
+}
