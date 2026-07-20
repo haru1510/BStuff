@@ -21,12 +21,17 @@ properties([
                     classpath: [],
                     sandbox: false,
                     script: '''
-                        @Library('pipeline-library') _
                         import org.yaml.snakeyaml.Yaml
                         
-                        def configText = new File('SiteConfiguration.yml').text
+                        def workspace = System.getenv('WORKSPACE') ?: 'C:/ProgramData/Jenkins/.jenkins/workspace/ROHOS/RoHOS-Sanity-Orchestrator'
+                        def configFile = new File(workspace, 'SiteConfiguration.yml')
+                        
+                        if (!configFile.exists()) {
+                            return ["ERROR: SiteConfiguration.yml not found in ${workspace}"]
+                        }
+                        
                         def yaml = new Yaml()
-                        def config = yaml.load(configText)
+                        def config = yaml.load(configFile.text)
                         
                         def labs = config.SITES[SITE]?.LABS ?: ['ERROR: Site not found']
                         return labs
@@ -50,12 +55,17 @@ properties([
                     classpath: [],
                     sandbox: false,
                     script: '''
-                        @Library('pipeline-library') _
                         import org.yaml.snakeyaml.Yaml
                         
-                        def configText = new File('SiteConfiguration.yml').text
+                        def workspace = System.getenv('WORKSPACE') ?: 'C:/ProgramData/Jenkins/.jenkins/workspace/ROHOS/RoHOS-Sanity-Orchestrator'
+                        def configFile = new File(workspace, 'SiteConfiguration.yml')
+                        
+                        if (!configFile.exists()) {
+                            return ["ERROR: SiteConfiguration.yml not found in ${workspace}"]
+                        }
+                        
                         def yaml = new Yaml()
-                        def config = yaml.load(configText)
+                        def config = yaml.load(configFile.text)
                         
                         def agents = config.SITES[SITE]?.AGENTS ?: ['ERROR: Site not found']
                         return agents
@@ -79,12 +89,17 @@ properties([
                     classpath: [],
                     sandbox: false,
                     script: '''
-                        @Library('pipeline-library') _
                         import org.yaml.snakeyaml.Yaml
                         
-                        def configText = new File('SiteConfiguration.yml').text
+                        def workspace = System.getenv('WORKSPACE') ?: 'C:/ProgramData/Jenkins/.jenkins/workspace/ROHOS/RoHOS-Sanity-Orchestrator'
+                        def configFile = new File(workspace, 'SiteConfiguration.yml')
+                        
+                        if (!configFile.exists()) {
+                            return "<input name=\\"value\\" value=\\"ERROR: File not found\\" class=\\"setting-input\\" type=\\"text\\">"
+                        }
+                        
                         def yaml = new Yaml()
-                        def config = yaml.load(configText)
+                        def config = yaml.load(configFile.text)
                         
                         def httpServer = config.SITES[SITE]?.HTTP_SERVER ?: ''
                         return "<input name=\\"value\\" value=\\"${httpServer}\\" class=\\"setting-input\\" type=\\"text\\">"
