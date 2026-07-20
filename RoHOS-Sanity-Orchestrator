@@ -35,7 +35,7 @@ pipeline {
                     '''
                 ]
             ]
-        ],
+        ]
         
         [$class: 'CascadeChoiceParameter',
             choiceType: 'PT_SINGLE_SELECT',
@@ -64,7 +64,7 @@ pipeline {
                     '''
                 ]
             ]
-        ],
+        ]
         
         [$class: 'DynamicReferenceParameter',
             name: 'HTTP_SERVER',
