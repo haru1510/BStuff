@@ -1,5 +1,41 @@
+def parseSiteConfiguration = { String text ->
+    def config = [SITES: [:]]
+    def currentSite = null
+    def currentSection = null
+    text.eachLine { rawLine ->
+        def line = rawLine.replaceAll(/#.*$/, '')
+        if (!line.trim()) return
+        def indent = line.takeWhile { it == ' ' }.size()
+        def content = line.trim()
+        if (indent == 0) {
+            if (content == 'SITES:') return
+        } else if (indent == 2 && content.endsWith(':')) {
+            currentSite = content[0..-2]
+            config.SITES[currentSite] = [:]
+            currentSection = null
+        } else if (currentSite != null && indent == 4 && content.endsWith(':')) {
+            currentSection = content[0..-2]
+            config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
+        } else if (currentSite != null && currentSection != null && indent == 6) {
+            if (content.startsWith('-')) {
+                def item = content.substring(1).trim().replaceAll(/^'(.*)'$/, '\\$1')
+                config.SITES[currentSite][currentSection] << item
+            } else if (content.contains(':')) {
+                def parts = content.split(':', 2)
+                def key = parts[0].trim()
+                def value = parts[1].trim()
+                if (value.startsWith("'") && value.endsWith("'")) {
+                    value = value[1..-2]
+                }
+                config.SITES[currentSite][currentSection][key] = value
+            }
+        }
+    }
+    return config
+}
+
 def siteConfigParserCode = '''
-def parseSiteConfiguration(String text) {
+def parseSiteConfiguration = { String text ->
     def config = [SITES: [:]]
     def currentSite = null
     def currentSection = null
@@ -35,8 +71,6 @@ def parseSiteConfiguration(String text) {
     return config
 }
 '''
-
-evaluate(siteConfigParserCode)
 
 def workspaceRoot = env.WORKSPACE
 if (!workspaceRoot) {
