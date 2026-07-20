@@ -1,8 +1,46 @@
-import org.yaml.snakeyaml.Yaml
-
-def config = new Yaml().load(readFile('SiteConfiguration.yml'))
+def config = readYaml file: 'SiteConfiguration.yml'
 def sites = config.SITES.keySet().sort().join('\n')
 def defaultSite = config.SITES.keySet().iterator().next()
+
+def siteConfigReactiveScriptPrefix = """
+    def parseSiteConfiguration = { String text ->
+        def config = [SITES: [:]]
+        def currentSite = null
+        def currentSection = null
+        text.eachLine { rawLine ->
+            def line = rawLine.replaceAll(/#.*$/, '')
+            if (!line.trim()) return
+            def indent = line.takeWhile { it == ' ' }.size()
+            def content = line.trim()
+            if (indent == 0) {
+                if (content == 'SITES:') return
+            } else if (indent == 2 && content.endsWith(':')) {
+                currentSite = content[0..-2]
+                config.SITES[currentSite] = [:]
+                currentSection = null
+            } else if (currentSite != null && indent == 4 && content.endsWith(':')) {
+                currentSection = content[0..-2]
+                config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
+            } else if (currentSite != null && currentSection != null && indent == 6) {
+                if (content.startsWith('-')) {
+                    def item = content.substring(1).trim().replaceAll(/^'(.*)'$/, '$1')
+                    config.SITES[currentSite][currentSection] << item
+                } else if (content.contains(':')) {
+                    def parts = content.split(':', 2)
+                    def key = parts[0].trim()
+                    def value = parts[1].trim()
+                    if (value.startsWith("'") && value.endsWith("'")) {
+                        value = value[1..-2]
+                    }
+                    config.SITES[currentSite][currentSection][key] = value
+                }
+            }
+        }
+        return config
+    }
+    def cfg = parseSiteConfiguration(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+    def site = SITE ?: '${defaultSite}'
+"""
 
 properties([
     parameters([
@@ -14,12 +52,7 @@ properties([
             referencedParameters: 'SITE',
             groovyScript: [
                 sandbox: true,
-                script: """
-                    import org.yaml.snakeyaml.Yaml
-                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
-                    def site = SITE ?: '${defaultSite}'
-                    return cfg.SITES[site].LABS ?: []
-                """
+                script: """${siteConfigReactiveScriptPrefix}return cfg.SITES[site].LABS ?: []"""
             ]
         ),
         activeChoiceReactiveReferenceParam(
@@ -29,12 +62,7 @@ properties([
             referencedParameters: 'SITE',
             groovyScript: [
                 sandbox: true,
-                script: """
-                    import org.yaml.snakeyaml.Yaml
-                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
-                    def site = SITE ?: '${defaultSite}'
-                    return cfg.SITES[site].AGENTS ?: []
-                """
+                script: """${siteConfigReactiveScriptPrefix}return cfg.SITES[site].AGENTS ?: []"""
             ]
         ),
         activeChoiceReactiveReferenceParam(
@@ -44,12 +72,7 @@ properties([
             referencedParameters: 'SITE',
             groovyScript: [
                 sandbox: true,
-                script: """
-                    import org.yaml.snakeyaml.Yaml
-                    def cfg = new Yaml().load(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
-                    def site = SITE ?: '${defaultSite}'
-                    return [ cfg.SITES[site].HTTP_SERVER ?: '' ]
-                """
+                script: """${siteConfigReactiveScriptPrefix}return [ cfg.SITES[site].HTTP_SERVER ?: '' ]"""
             ]
         ),
         string(name: 'instage', defaultValue: '', description: 'instage value')
