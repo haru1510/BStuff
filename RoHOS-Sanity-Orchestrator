@@ -1,13 +1,10 @@
-pipeline {
-    agent any
-
-    parameters {
+properties([
+    parameters([
         choice(
             name: 'SITE',
             choices: ['PLANO', 'OTTAWA', 'TMA'],
             description: 'Select deployment site'
-        )
-        
+        ),
         [$class: 'CascadeChoiceParameter',
             choiceType: 'PT_SINGLE_SELECT',
             name: 'LAB_NAME',
@@ -25,18 +22,17 @@ pipeline {
                     sandbox: true,
                     script: '''
                         import org.yaml.snakeyaml.Yaml
-                        
+
                         def configFile = readFileFromWorkspace('SiteConfiguration.yml')
                         def yaml = new Yaml()
                         def config = yaml.load(configFile)
-                        
+
                         def labs = config.SITES[SITE]?.LABS ?: []
                         return labs
                     '''
                 ]
             ]
-        ]
-        
+        ],
         [$class: 'CascadeChoiceParameter',
             choiceType: 'PT_SINGLE_SELECT',
             name: 'AGENT',
@@ -54,18 +50,17 @@ pipeline {
                     sandbox: true,
                     script: '''
                         import org.yaml.snakeyaml.Yaml
-                        
+
                         def configFile = readFileFromWorkspace('SiteConfiguration.yml')
                         def yaml = new Yaml()
                         def config = yaml.load(configFile)
-                        
+
                         def agents = config.SITES[SITE]?.AGENTS ?: []
                         return agents
                     '''
                 ]
             ]
-        ]
-        
+        ],
         [$class: 'DynamicReferenceParameter',
             name: 'HTTP_SERVER',
             description: 'HTTP server (auto-populated based on SITE)',
@@ -83,18 +78,22 @@ pipeline {
                     sandbox: true,
                     script: '''
                         import org.yaml.snakeyaml.Yaml
-                        
+
                         def configFile = readFileFromWorkspace('SiteConfiguration.yml')
                         def yaml = new Yaml()
                         def config = yaml.load(configFile)
-                        
+
                         def httpServer = config.SITES[SITE]?.HTTP_SERVER ?: ''
                         return "<input name=\\"value\\" value=\\"${httpServer}\\" class=\\"setting-input\\" type=\\"text\\">"
                     '''
                 ]
             ]
         ]
-    }
+    ])
+])
+
+pipeline {
+    agent any
     
     stages {
         stage('Echo Parameters') {
@@ -107,7 +106,7 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Run ROHOS-install') {
             steps {
                 script {
@@ -120,7 +119,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Run FW-upgrade') {
             steps {
                 script {
@@ -133,5 +132,4 @@ pipeline {
             }
         }
     }
-}
- 
+} 
