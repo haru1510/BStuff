@@ -2,136 +2,136 @@ pipeline {
     agent any
 
     parameters {
-        choice(
-            name: 'SITE',
-            choices: ['PLANO', 'OTTAWA', 'TMA'],
-            description: 'Select deployment site'
-        )
-        
-        [$class: 'CascadeChoiceParameter',
-            choiceType: 'PT_SINGLE_SELECT',
-            name: 'LAB_NAME',
-            description: 'Lab name (auto-populated based on SITE)',
-            referencedParameters: 'SITE',
-            script: [
-                $class: 'GroovyScript',
-                fallbackScript: [
-                    classpath: [],
-                    sandbox: true,
-                    script: 'return ["ERROR: Failed to load labs"]'
-                ],
-                script: [
-                    classpath: [],
-                    sandbox: true,
-                    script: '''
-                        import org.yaml.snakeyaml.Yaml
-                        
-                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
-                        def yaml = new Yaml()
-                        def config = yaml.load(configFile)
-                        
-                        def labs = config.SITES[SITE]?.LABS ?: []
-                        return labs
-                    '''
-                ]
-            ]
-        ],
-        
-        [$class: 'CascadeChoiceParameter',
-            choiceType: 'PT_SINGLE_SELECT',
-            name: 'AGENT',
-            description: 'Agent label (auto-populated based on SITE)',
-            referencedParameters: 'SITE',
-            script: [
-                $class: 'GroovyScript',
-                fallbackScript: [
-                    classpath: [],
-                    sandbox: true,
-                    script: 'return ["ERROR: Failed to load agents"]'
-                ],
-                script: [
-                    classpath: [],
-                    sandbox: true,
-                    script: '''
-                        import org.yaml.snakeyaml.Yaml
-                        
-                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
-                        def yaml = new Yaml()
-                        def config = yaml.load(configFile)
-                        
-                        def agents = config.SITES[SITE]?.AGENTS ?: []
-                        return agents
-                    '''
-                ]
-            ]
-        ],
-        
-        [$class: 'DynamicReferenceParameter',
-            name: 'HTTP_SERVER',
-            description: 'HTTP server (auto-populated based on SITE)',
-            referencedParameters: 'SITE',
-            choiceType: 'ET_FORMATTED_HTML',
-            script: [
-                $class: 'GroovyScript',
-                fallbackScript: [
-                    classpath: [],
-                    sandbox: true,
-                    script: 'return "<input name=\\"value\\" value=\\"ERROR\\" class=\\"setting-input\\" type=\\"text\\">"'
-                ],
-                script: [
-                    classpath: [],
-                    sandbox: true,
-                    script: '''
-                        import org.yaml.snakeyaml.Yaml
-                        
-                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
-                        def yaml = new Yaml()
-                        def config = yaml.load(configFile)
-                        
-                        def httpServer = config.SITES[SITE]?.HTTP_SERVER ?: ''
-                        return "<input name=\\"value\\" value=\\"${httpServer}\\" class=\\"setting-input\\" type=\\"text\\">"
-                    '''
-                ]
-            ]
-        ]
-    }
-    
-    stages {
-        stage('Echo Parameters') {
-            steps {
-                sh '''
-                    echo "SITE=${SITE}"
-                    echo "AGENT=${AGENT}"
-                    echo "LAB_NAME=${LAB_NAME}"
-                    echo "HTTP_SERVER=${HTTP_SERVER}"
-                '''
-            }
-        }
-        
-        stage('Run ROHOS-install') {
-            steps {
-                script {
-                    build job: 'ROHOS-install', parameters: [
-                        string(name: 'SITE', value: params.SITE),
-                        string(name: 'LAB_NAME', value: params.LAB_NAME),
-                        string(name: 'AGENT', value: params.AGENT),
-                        string(name: 'HTTP_SERVER', value: params.HTTP_SERVER),
-                    ], wait: true
-                }
-            }
-        }
-        
-        stage('Run FW-upgrade') {
-            steps {
-                script {
-                    build job: 'FW-upgrade', parameters: [
-                        string(name: 'SITE', value: params.SITE),
-                        string(name: 'LAB_NAME', value: params.LAB_NAME),
-                        string(name: 'AGENT', value: params.AGENT),
-                    ], wait: true
-                }
-            }
-        }
-    }
+        choice(
+            name: 'SITE',
+            choices: ['PLANO', 'OTTAWA', 'TMA'],
+            description: 'Select deployment site'
+        )
+        
+        [$class: 'CascadeChoiceParameter',
+            choiceType: 'PT_SINGLE_SELECT',
+            name: 'LAB_NAME',
+            description: 'Lab name (auto-populated based on SITE)',
+            referencedParameters: 'SITE',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: true,
+                    script: 'return ["ERROR: Failed to load labs"]'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: true,
+                    script: '''
+                        import org.yaml.snakeyaml.Yaml
+                        
+                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        def yaml = new Yaml()
+                        def config = yaml.load(configFile)
+                        
+                        def labs = config.SITES[SITE]?.LABS ?: []
+                        return labs
+                    '''
+                ]
+            ]
+        ],
+        
+        [$class: 'CascadeChoiceParameter',
+            choiceType: 'PT_SINGLE_SELECT',
+            name: 'AGENT',
+            description: 'Agent label (auto-populated based on SITE)',
+            referencedParameters: 'SITE',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: true,
+                    script: 'return ["ERROR: Failed to load agents"]'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: true,
+                    script: '''
+                        import org.yaml.snakeyaml.Yaml
+                        
+                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        def yaml = new Yaml()
+                        def config = yaml.load(configFile)
+                        
+                        def agents = config.SITES[SITE]?.AGENTS ?: []
+                        return agents
+                    '''
+                ]
+            ]
+        ],
+        
+        [$class: 'DynamicReferenceParameter',
+            name: 'HTTP_SERVER',
+            description: 'HTTP server (auto-populated based on SITE)',
+            referencedParameters: 'SITE',
+            choiceType: 'ET_FORMATTED_HTML',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: true,
+                    script: 'return "<input name=\\"value\\" value=\\"ERROR\\" class=\\"setting-input\\" type=\\"text\\">"'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: true,
+                    script: '''
+                        import org.yaml.snakeyaml.Yaml
+                        
+                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        def yaml = new Yaml()
+                        def config = yaml.load(configFile)
+                        
+                        def httpServer = config.SITES[SITE]?.HTTP_SERVER ?: ''
+                        return "<input name=\\"value\\" value=\\"${httpServer}\\" class=\\"setting-input\\" type=\\"text\\">"
+                    '''
+                ]
+            ]
+        ]
+    }
+    
+    stages {
+        stage('Echo Parameters') {
+            steps {
+                sh '''
+                    echo "SITE=${SITE}"
+                    echo "AGENT=${AGENT}"
+                    echo "LAB_NAME=${LAB_NAME}"
+                    echo "HTTP_SERVER=${HTTP_SERVER}"
+                '''
+            }
+        }
+        
+        stage('Run ROHOS-install') {
+            steps {
+                script {
+                    build job: 'ROHOS-install', parameters: [
+                        string(name: 'SITE', value: params.SITE),
+                        string(name: 'LAB_NAME', value: params.LAB_NAME),
+                        string(name: 'AGENT', value: params.AGENT),
+                        string(name: 'HTTP_SERVER', value: params.HTTP_SERVER),
+                    ], wait: true
+                }
+            }
+        }
+        
+        stage('Run FW-upgrade') {
+            steps {
+                script {
+                    build job: 'FW-upgrade', parameters: [
+                        string(name: 'SITE', value: params.SITE),
+                        string(name: 'LAB_NAME', value: params.LAB_NAME),
+                        string(name: 'AGENT', value: params.AGENT),
+                    ], wait: true
+                }
+            }
+        }
+    }
 }
  
