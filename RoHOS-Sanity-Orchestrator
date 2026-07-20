@@ -19,15 +19,16 @@ properties([
                 ],
                 script: [
                     classpath: [],
-                    sandbox: true,
+                    sandbox: false,
                     script: '''
+                        @Library('pipeline-library') _
                         import org.yaml.snakeyaml.Yaml
-
-                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        
+                        def configText = new File('SiteConfiguration.yml').text
                         def yaml = new Yaml()
-                        def config = yaml.load(configFile)
-
-                        def labs = config.SITES[SITE]?.LABS ?: []
+                        def config = yaml.load(configText)
+                        
+                        def labs = config.SITES[SITE]?.LABS ?: ['ERROR: Site not found']
                         return labs
                     '''
                 ]
@@ -47,15 +48,16 @@ properties([
                 ],
                 script: [
                     classpath: [],
-                    sandbox: true,
+                    sandbox: false,
                     script: '''
+                        @Library('pipeline-library') _
                         import org.yaml.snakeyaml.Yaml
-
-                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        
+                        def configText = new File('SiteConfiguration.yml').text
                         def yaml = new Yaml()
-                        def config = yaml.load(configFile)
-
-                        def agents = config.SITES[SITE]?.AGENTS ?: []
+                        def config = yaml.load(configText)
+                        
+                        def agents = config.SITES[SITE]?.AGENTS ?: ['ERROR: Site not found']
                         return agents
                     '''
                 ]
@@ -75,14 +77,15 @@ properties([
                 ],
                 script: [
                     classpath: [],
-                    sandbox: true,
+                    sandbox: false,
                     script: '''
+                        @Library('pipeline-library') _
                         import org.yaml.snakeyaml.Yaml
-
-                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        
+                        def configText = new File('SiteConfiguration.yml').text
                         def yaml = new Yaml()
-                        def config = yaml.load(configFile)
-
+                        def config = yaml.load(configText)
+                        
                         def httpServer = config.SITES[SITE]?.HTTP_SERVER ?: ''
                         return "<input name=\\"value\\" value=\\"${httpServer}\\" class=\\"setting-input\\" type=\\"text\\">"
                     '''
@@ -98,11 +101,11 @@ pipeline {
     stages {
         stage('Echo Parameters') {
             steps {
-                sh '''
-                    echo "SITE=${SITE}"
-                    echo "AGENT=${AGENT}"
-                    echo "LAB_NAME=${LAB_NAME}"
-                    echo "HTTP_SERVER=${HTTP_SERVER}"
+                bat '''
+                    echo SITE=%SITE%
+                    echo AGENT=%AGENT%
+                    echo LAB_NAME=%LAB_NAME%
+                    echo HTTP_SERVER=%HTTP_SERVER%
                 '''
             }
         }
@@ -132,4 +135,4 @@ pipeline {
             }
         }
     }
-} 
+}
