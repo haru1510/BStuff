@@ -34,44 +34,6 @@ def parseSiteConfiguration(String text) {
     return config
 }
 
-def siteConfigParserCode = '''
-def parseSiteConfiguration(String text) {
-    def config = [SITES: [:]]
-    def currentSite = null
-    def currentSection = null
-    for (String rawLine in text.readLines()) {
-        def line = rawLine.replaceAll(/#.*$/, '')
-        if (!line.trim()) continue
-        def indent = line.takeWhile { it == ' ' }.size()
-        def content = line.trim()
-        if (indent == 0) {
-            if (content == 'SITES:') continue
-        } else if (indent == 2 && content.endsWith(':')) {
-            currentSite = content[0..-2]
-            config.SITES[currentSite] = [:]
-            currentSection = null
-        } else if (currentSite != null && indent == 4 && content.endsWith(':')) {
-            currentSection = content[0..-2]
-            config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
-        } else if (currentSite != null && currentSection != null && indent == 6) {
-            if (content.startsWith('-')) {
-                def item = content.substring(1).trim().replaceAll(/^'(.*)'$/, '\\$1')
-                config.SITES[currentSite][currentSection] << item
-            } else if (content.contains(':')) {
-                def parts = content.split(':', 2)
-                def key = parts[0].trim()
-                def value = parts[1].trim()
-                if (value.startsWith("'") && value.endsWith("'")) {
-                    value = value[1..-2]
-                }
-                config.SITES[currentSite][currentSection][key] = value
-            }
-        }
-    }
-    return config
-}
-'''
-
 def workspaceRoot = env.WORKSPACE
 if (!workspaceRoot) {
     node {
@@ -87,14 +49,52 @@ def config = parseSiteConfiguration(siteConfigFile.text)
 def sites = config.SITES.keySet().sort().join('\n')
 def defaultSite = config.SITES.keySet().iterator().next()
 
-def siteConfigReactiveScriptPrefix = """${siteConfigParserCode}
-    def cfgFile = new File(env.WORKSPACE ? env.WORKSPACE + '/SiteConfiguration.yml' : 'SiteConfiguration.yml')
-    if (!cfgFile.exists()) {
-        error "SiteConfiguration.yml not found at ${cfgFile.canonicalPath}"
-    }
-    def cfg = parseSiteConfiguration(cfgFile.text)
-    def site = SITE ?: '${defaultSite}'
-"""
+def buildReactiveChoiceScript(String expression) {
+    return """
+        def parseSiteConfiguration(String text) {
+            def config = [SITES: [:]]
+            def currentSite = null
+            def currentSection = null
+            for (String rawLine in text.readLines()) {
+                def line = rawLine.replaceAll(/#.*$/, '')
+                if (!line.trim()) continue
+                def indent = line.takeWhile { it == ' ' }.size()
+                def content = line.trim()
+                if (indent == 0) {
+                    if (content == 'SITES:') continue
+                } else if (indent == 2 && content.endsWith(':')) {
+                    currentSite = content[0..-2]
+                    config.SITES[currentSite] = [:]
+                    currentSection = null
+                } else if (currentSite != null && indent == 4 && content.endsWith(':')) {
+                    currentSection = content[0..-2]
+                    config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
+                } else if (currentSite != null && currentSection != null && indent == 6) {
+                    if (content.startsWith('-')) {
+                        def item = content.substring(1).trim().replaceAll(/^'(.*)'$/, '\\$1')
+                        config.SITES[currentSite][currentSection] << item
+                    } else if (content.contains(':')) {
+                        def parts = content.split(':', 2)
+                        def key = parts[0].trim()
+                        def value = parts[1].trim()
+                        if (value.startsWith("'") && value.endsWith("'")) {
+                            value = value[1..-2]
+                        }
+                        config.SITES[currentSite][currentSection][key] = value
+                    }
+                }
+            }
+            return config
+        }
+        def cfgFile = new File(env.WORKSPACE ? env.WORKSPACE + '/SiteConfiguration.yml' : 'SiteConfiguration.yml')
+        if (!cfgFile.exists()) {
+            error "SiteConfiguration.yml not found at \${cfgFile.canonicalPath}"
+        }
+        def cfg = parseSiteConfiguration(cfgFile.text)
+        def site = SITE ?: '${defaultSite}'
+        return ${expression}
+    """
+}
 
 properties([
     parameters([
@@ -106,7 +106,7 @@ properties([
             referencedParameters: 'SITE',
             groovyScript: [
                 sandbox: true,
-                script: """${siteConfigReactiveScriptPrefix}return cfg.SITES[site].LABS ?: []"""
+                script: buildReactiveChoiceScript("cfg.SITES[site].LABS ?: []")
             ]
         ),
         activeChoiceReactiveReferenceParam(
@@ -116,7 +116,7 @@ properties([
             referencedParameters: 'SITE',
             groovyScript: [
                 sandbox: true,
-                script: """${siteConfigReactiveScriptPrefix}return cfg.SITES[site].AGENTS ?: []"""
+                script: buildReactiveChoiceScript("cfg.SITES[site].AGENTS ?: []")
             ]
         ),
         activeChoiceReactiveReferenceParam(
@@ -126,7 +126,7 @@ properties([
             referencedParameters: 'SITE',
             groovyScript: [
                 sandbox: true,
-                script: """${siteConfigReactiveScriptPrefix}return [ cfg.SITES[site].HTTP_SERVER ?: '' ]"""
+                script: buildReactiveChoiceScript("[ cfg.SITES[site].HTTP_SERVER ?: '' ]")
             ]
         ),
     ])
