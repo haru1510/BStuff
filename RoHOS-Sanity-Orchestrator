@@ -38,12 +38,27 @@ def parseSiteConfiguration(String text) {
 
 evaluate(siteConfigParserCode)
 
-def config = parseSiteConfiguration(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+def workspaceRoot = env.WORKSPACE
+if (!workspaceRoot) {
+    node {
+        checkout scm
+        workspaceRoot = env.WORKSPACE
+    }
+}
+def siteConfigFile = new File(workspaceRoot ? workspaceRoot + '/SiteConfiguration.yml' : 'SiteConfiguration.yml')
+if (!siteConfigFile.exists()) {
+    error "SiteConfiguration.yml not found at ${siteConfigFile.canonicalPath}"
+}
+def config = parseSiteConfiguration(siteConfigFile.text)
 def sites = config.SITES.keySet().sort().join('\n')
 def defaultSite = config.SITES.keySet().iterator().next()
 
 def siteConfigReactiveScriptPrefix = """${siteConfigParserCode}
-    def cfg = parseSiteConfiguration(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
+    def cfgFile = new File(env.WORKSPACE ? env.WORKSPACE + '/SiteConfiguration.yml' : 'SiteConfiguration.yml')
+    if (!cfgFile.exists()) {
+        error "SiteConfiguration.yml not found at ${cfgFile.canonicalPath}"
+    }
+    def cfg = parseSiteConfiguration(cfgFile.text)
     def site = SITE ?: '${defaultSite}'
 """
 
