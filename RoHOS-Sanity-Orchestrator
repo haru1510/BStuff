@@ -1,14 +1,14 @@
-def parseSiteConfiguration = { String text ->
+def parseSiteConfiguration(String text) {
     def config = [SITES: [:]]
     def currentSite = null
     def currentSection = null
-    text.eachLine { rawLine ->
+    for (String rawLine in text.readLines()) {
         def line = rawLine.replaceAll(/#.*$/, '')
-        if (!line.trim()) return
+        if (!line.trim()) continue
         def indent = line.takeWhile { it == ' ' }.size()
         def content = line.trim()
         if (indent == 0) {
-            if (content == 'SITES:') return
+            if (content == 'SITES:') continue
         } else if (indent == 2 && content.endsWith(':')) {
             currentSite = content[0..-2]
             config.SITES[currentSite] = [:]
@@ -35,17 +35,17 @@ def parseSiteConfiguration = { String text ->
 }
 
 def siteConfigParserCode = '''
-def parseSiteConfiguration = { String text ->
+def parseSiteConfiguration(String text) {
     def config = [SITES: [:]]
     def currentSite = null
     def currentSection = null
-    text.eachLine { rawLine ->
+    for (String rawLine in text.readLines()) {
         def line = rawLine.replaceAll(/#.*$/, '')
-        if (!line.trim()) return
+        if (!line.trim()) continue
         def indent = line.takeWhile { it == ' ' }.size()
         def content = line.trim()
         if (indent == 0) {
-            if (content == 'SITES:') return
+            if (content == 'SITES:') continue
         } else if (indent == 2 && content.endsWith(':')) {
             currentSite = content[0..-2]
             config.SITES[currentSite] = [:]
