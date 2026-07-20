@@ -1,9 +1,33 @@
+def stripInlineComment(String rawLine) {
+    def result = new StringBuilder()
+    boolean inSingle = false
+    boolean inDouble = false
+    for (int i = 0; i < rawLine.length(); i++) {
+        char ch = rawLine.charAt(i)
+        if (ch == '\'' as char) {
+            inSingle = !inSingle
+            result.append(ch)
+            continue
+        }
+        if (ch == '"' as char) {
+            inDouble = !inDouble
+            result.append(ch)
+            continue
+        }
+        if (ch == '#' as char && !inSingle && !inDouble) {
+            break
+        }
+        result.append(ch)
+    }
+    return result.toString()
+}
+
 def parseSiteConfiguration(String text) {
     def config = [SITES: [:]]
     def currentSite = null
     def currentSection = null
     for (String rawLine in text.readLines()) {
-        def line = rawLine.replaceAll(/#.*\$/, '')
+        def line = stripInlineComment(rawLine)
         if (!line.trim()) continue
         def indent = line.takeWhile { it == ' ' }.size()
         def content = line.trim()
@@ -18,7 +42,12 @@ def parseSiteConfiguration(String text) {
             config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
         } else if (currentSite != null && currentSection != null && indent == 6) {
             if (content.startsWith('-')) {
-                def item = content.substring(1).trim().replaceAll(/^'(.*)'$/, '\\$1')
+                def item = content.substring(1).trim()
+                if (item.startsWith('"') && item.endsWith('"')) {
+                    item = item.substring(1, item.length() - 1)
+                } else if (item.startsWith("'") && item.endsWith("'")) {
+                    item = item.substring(1, item.length() - 1)
+                }
                 config.SITES[currentSite][currentSection] << item
             } else if (content.contains(':')) {
                 def parts = content.split(':', 2)
