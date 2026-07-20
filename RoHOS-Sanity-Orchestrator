@@ -1,208 +1,137 @@
-def stripInlineComment(String rawLine) {
-    def result = new StringBuilder()
-    boolean inSingle = false
-    boolean inDouble = false
-    for (int i = 0; i < rawLine.length(); i++) {
-        char ch = rawLine.charAt(i)
-        if (ch == '\'' as char) {
-            inSingle = !inSingle
-            result.append(ch)
-            continue
-        }
-        if (ch == '"' as char) {
-            inDouble = !inDouble
-            result.append(ch)
-            continue
-        }
-        if (ch == '#' as char && !inSingle && !inDouble) {
-            break
-        }
-        result.append(ch)
-    }
-    return result.toString()
-}
-
-def parseSiteConfiguration(String text) {
-    def config = [SITES: [:]]
-    def currentSite = null
-    def currentSection = null
-    for (String rawLine in text.readLines()) {
-        def line = stripInlineComment(rawLine)
-        if (!line.trim()) continue
-        def indent = line.takeWhile { it == ' ' }.size()
-        def content = line.trim()
-        if (indent == 0) {
-            if (content == 'SITES:') continue
-        } else if (indent == 2 && content.endsWith(':')) {
-            currentSite = content[0..-2]
-            config.SITES[currentSite] = [:]
-            currentSection = null
-        } else if (currentSite != null && indent == 4 && content.endsWith(':')) {
-            currentSection = content[0..-2]
-            config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
-        } else if (currentSite != null && currentSection != null && indent == 6) {
-            if (content.startsWith('-')) {
-                def item = content.substring(1).trim()
-                if (item.startsWith('"') && item.endsWith('"')) {
-                    item = item.substring(1, item.length() - 1)
-                } else if (item.startsWith("'") && item.endsWith("'")) {
-                    item = item.substring(1, item.length() - 1)
-                }
-                config.SITES[currentSite][currentSection] << item
-            } else if (content.contains(':')) {
-                def parts = content.split(':', 2)
-                def key = parts[0].trim()
-                def value = parts[1].trim()
-                if (value.startsWith("'") && value.endsWith("'")) {
-                    value = value[1..-2]
-                }
-                config.SITES[currentSite][currentSection][key] = value
-            }
-        }
-    }
-    return config
-}
-
-def workspaceRoot = env.WORKSPACE
-if (!workspaceRoot) {
-    node {
-        checkout scm
-        workspaceRoot = env.WORKSPACE
-    }
-}
-def siteConfigFile = new File(workspaceRoot ? workspaceRoot + '/SiteConfiguration.yml' : 'SiteConfiguration.yml')
-if (!siteConfigFile.exists()) {
-    error "SiteConfiguration.yml not found at ${siteConfigFile.canonicalPath}"
-}
-def config = parseSiteConfiguration(siteConfigFile.text)
-def sites = config.SITES.keySet().sort().join('\n')
-def defaultSite = config.SITES.keySet().iterator().next()
-
-def buildReactiveChoiceScript(String expression) {
-    return """
-        def parseSiteConfiguration(String text) {
-            def config = [SITES: [:]]
-            def currentSite = null
-            def currentSection = null
-            for (String rawLine in text.readLines()) {
-                def line = rawLine.replaceAll(/#.*$/, '')
-                if (!line.trim()) continue
-                def indent = line.takeWhile { it == ' ' }.size()
-                def content = line.trim()
-                if (indent == 0) {
-                    if (content == 'SITES:') continue
-                } else if (indent == 2 && content.endsWith(':')) {
-                    currentSite = content[0..-2]
-                    config.SITES[currentSite] = [:]
-                    currentSection = null
-                } else if (currentSite != null && indent == 4 && content.endsWith(':')) {
-                    currentSection = content[0..-2]
-                    config.SITES[currentSite][currentSection] = (currentSection in ['LABS', 'AGENTS']) ? [] : [:]
-                } else if (currentSite != null && currentSection != null && indent == 6) {
-                    if (content.startsWith('-')) {
-                        def item = content.substring(1).trim()
-                        if (item.startsWith("\"") && item.endsWith("\"")) {
-                            item = item.substring(1, item.length() - 1)
-                        } else if (item.startsWith("'") && item.endsWith("'")) {
-                            item = item.substring(1, item.length() - 1)
-                        }
-                        config.SITES[currentSite][currentSection] << item
-                    } else if (content.contains(':')) {
-                        def parts = content.split(':', 2)
-                        def key = parts[0].trim()
-                        def value = parts[1].trim()
-                        if (value.startsWith("'") && value.endsWith("'")) {
-                            value = value[1..-2]
-                        }
-                        config.SITES[currentSite][currentSection][key] = value
-                    }
-                }
-            }
-            return config
-        }
-        def cfgFile = new File(env.WORKSPACE ? env.WORKSPACE + '/SiteConfiguration.yml' : 'SiteConfiguration.yml')
-        if (!cfgFile.exists()) {
-            error "SiteConfiguration.yml not found at \${cfgFile.canonicalPath}"
-        }
-        def cfg = parseSiteConfiguration(cfgFile.text)
-        def site = SITE ?: '${defaultSite}'
-        return ${expression}
-    """
-}
-
-properties([
-    parameters([
-        choice(name: 'SITE', choices: sites, description: 'Site'),
-        activeChoiceReactiveReferenceParam(
-            name: 'LAB_NAME',
-            description: 'Lab name',
-            choiceType: 'SINGLE_SELECT',
-            referencedParameters: 'SITE',
-            groovyScript: [
-                sandbox: true,
-                script: buildReactiveChoiceScript("cfg.SITES[site].LABS ?: []")
-            ]
-        ),
-        activeChoiceReactiveReferenceParam(
-            name: 'AGENT',
-            description: 'Agent label',
-            choiceType: 'SINGLE_SELECT',
-            referencedParameters: 'SITE',
-            groovyScript: [
-                sandbox: true,
-                script: buildReactiveChoiceScript("cfg.SITES[site].AGENTS ?: []")
-            ]
-        ),
-        activeChoiceReactiveReferenceParam(
-            name: 'HTTP_SERVER',
-            description: 'HTTP server',
-            choiceType: 'SINGLE_SELECT',
-            referencedParameters: 'SITE',
-            groovyScript: [
-                sandbox: true,
-                script: buildReactiveChoiceScript("[ cfg.SITES[site].HTTP_SERVER ?: '' ]")
-            ]
-        ),
-    ])
-])
-
 pipeline {
-    agent any
-    stages {
-        stage('Echo Parameters') {
-            steps {
-                sh '''
-                    echo "SITE=${SITE}"
-                    echo "AGENT=${AGENT}"
-                    echo "LAB_NAME=${LAB_NAME}"
-                    echo "HTTP_SERVER=${HTTP_SERVER}"
-                    echo "instage=${instage}"
-                '''
-            }
-        }
-        stage('Run ROHOS-install') {
-            steps {
-                script {
-                    build job: 'ROHOS-install', parameters: [
-                        string(name: 'SITE', value: params.SITE),
-                        string(name: 'LAB_NAME', value: params.LAB_NAME),
-                        string(name: 'AGENT', value: params.AGENT),
-                        string(name: 'HTTP_SERVER', value: params.HTTP_SERVER),
-                    ], wait: true
-                }
-            }
-        }
-        stage('Run FW-upgrade') {
-            steps {
-                script {
-                    build job: 'FW-upgrade', parameters: [
-                        string(name: 'SITE', value: params.SITE),
-                        string(name: 'LAB_NAME', value: params.LAB_NAME),
-                        string(name: 'AGENT', value: params.AGENT),
-                    ], wait: true
-                }
-            }
-        }
-    }
-
+    agent any
+    
+    parameters {
+        choice(
+            name: 'SITE',
+            choices: ['PLANO', 'OTTAWA', 'TMA'],
+            description: 'Select deployment site'
+        )
+        
+        [$class: 'CascadeChoiceParameter',
+            choiceType: 'PT_SINGLE_SELECT',
+            name: 'LAB_NAME',
+            description: 'Lab name (auto-populated based on SITE)',
+            referencedParameters: 'SITE',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: true,
+                    script: 'return ["ERROR: Failed to load labs"]'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: true,
+                    script: '''
+                        import org.yaml.snakeyaml.Yaml
+                        
+                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        def yaml = new Yaml()
+                        def config = yaml.load(configFile)
+                        
+                        def labs = config.SITES[SITE]?.LABS ?: []
+                        return labs
+                    '''
+                ]
+            ]
+        ],
+        
+        [$class: 'CascadeChoiceParameter',
+            choiceType: 'PT_SINGLE_SELECT',
+            name: 'AGENT',
+            description: 'Agent label (auto-populated based on SITE)',
+            referencedParameters: 'SITE',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: true,
+                    script: 'return ["ERROR: Failed to load agents"]'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: true,
+                    script: '''
+                        import org.yaml.snakeyaml.Yaml
+                        
+                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        def yaml = new Yaml()
+                        def config = yaml.load(configFile)
+                        
+                        def agents = config.SITES[SITE]?.AGENTS ?: []
+                        return agents
+                    '''
+                ]
+            ]
+        ],
+        
+        [$class: 'DynamicReferenceParameter',
+            name: 'HTTP_SERVER',
+            description: 'HTTP server (auto-populated based on SITE)',
+            referencedParameters: 'SITE',
+            choiceType: 'ET_FORMATTED_HTML',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: true,
+                    script: 'return "<input name=\\"value\\" value=\\"ERROR\\" class=\\"setting-input\\" type=\\"text\\">"'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: true,
+                    script: '''
+                        import org.yaml.snakeyaml.Yaml
+                        
+                        def configFile = readFileFromWorkspace('SiteConfiguration.yml')
+                        def yaml = new Yaml()
+                        def config = yaml.load(configFile)
+                        
+                        def httpServer = config.SITES[SITE]?.HTTP_SERVER ?: ''
+                        return "<input name=\\"value\\" value=\\"${httpServer}\\" class=\\"setting-input\\" type=\\"text\\">"
+                    '''
+                ]
+            ]
+        ]
+    }
+    
+    stages {
+        stage('Echo Parameters') {
+            steps {
+                sh '''
+                    echo "SITE=${SITE}"
+                    echo "AGENT=${AGENT}"
+                    echo "LAB_NAME=${LAB_NAME}"
+                    echo "HTTP_SERVER=${HTTP_SERVER}"
+                '''
+            }
+        }
+        
+        stage('Run ROHOS-install') {
+            steps {
+                script {
+                    build job: 'ROHOS-install', parameters: [
+                        string(name: 'SITE', value: params.SITE),
+                        string(name: 'LAB_NAME', value: params.LAB_NAME),
+                        string(name: 'AGENT', value: params.AGENT),
+                        string(name: 'HTTP_SERVER', value: params.HTTP_SERVER),
+                    ], wait: true
+                }
+            }
+        }
+        
+        stage('Run FW-upgrade') {
+            steps {
+                script {
+                    build job: 'FW-upgrade', parameters: [
+                        string(name: 'SITE', value: params.SITE),
+                        string(name: 'LAB_NAME', value: params.LAB_NAME),
+                        string(name: 'AGENT', value: params.AGENT),
+                    ], wait: true
+                }
+            }
+        }
+    }
 }
+ 
