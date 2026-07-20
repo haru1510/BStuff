@@ -1,7 +1,7 @@
 pipeline {
-    agent any
-    
-    parameters {
+    agent any
+
+    parameters {
         choice(
             name: 'SITE',
             choices: ['PLANO', 'OTTAWA', 'TMA'],
