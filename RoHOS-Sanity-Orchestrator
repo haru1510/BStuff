@@ -38,7 +38,7 @@ def parseSiteConfiguration(String text) {
 
 evaluate(siteConfigParserCode)
 
-def config = parseSiteConfiguration(readFile('SiteConfiguration.yml'))
+def config = parseSiteConfiguration(new File(env.WORKSPACE + '/SiteConfiguration.yml').text)
 def sites = config.SITES.keySet().sort().join('\n')
 def defaultSite = config.SITES.keySet().iterator().next()
 
